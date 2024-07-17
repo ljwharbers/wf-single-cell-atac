@@ -1,0 +1,3 @@
+task_id	hash	native_id	name	status	exit	submit	duration	realtime	%cpu	peak_rss	peak_vmem	rchar	wchar
+2	8d/578c51	1232676	pipeline:getParams	COMPLETED	0	2024-04-16 13:39:51.234	698ms	135ms	6.9%	1012 KB	3.8 MB	74 KB	2.1 KB
+1	69/05b24c	1232685	pipeline:getVersions	ABORTED	-	2024-04-16 13:39:51.247	-	-	-	-	-	-	-

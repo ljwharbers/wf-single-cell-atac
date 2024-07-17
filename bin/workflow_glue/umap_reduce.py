@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 from sklearn.decomposition import IncrementalPCA
-import umap
+#import umap
 
 from .util import get_named_logger, wf_parser  # noqa: ABS101
 

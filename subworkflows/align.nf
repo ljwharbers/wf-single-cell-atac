@@ -29,39 +29,28 @@ process align_to_ref {
         tuple val(sample_id),
               path("reads.fastq")
         path "ref_genome.fasta"
-        path "ref_genes.bed"
-        path "ref_chrom_sizes.tsv"
     output:
         tuple val(sample_id), 
-            path("*sorted.bam"), 
-            path("*sorted.bam.bai"), 
+            path("${sample_id}.sorted.bam"), 
+            path("${sample_id}.sorted.bam.bai"), 
             emit: bam_sort
     """
-     minimap2 -ax splice -uf --secondary=no --MD -t $task.cpus \
-      --junc-bed ref_genes.bed $params.resources_mm2_flags  \
-      ref_genome.fasta reads.fastq* \
-        | samtools view -b --no-PG -t ref_chrom_sizes - \
-        | samtools sort -@ 2 --no-PG  - > "${sample_id}_sorted.bam"
-    samtools index -@ ${task.cpus} "${sample_id}_sorted.bam"
+    minimap2 -ax map-ont -k 17 -t ${task.cpus} -L -y --secondary=no --MD --cap-kalloc=1g -K 10g ref_genome.fasta reads.fastq* \
+        | samtools sort -@ 2 -o ${sample_id}.sorted.bam
+    samtools index -@ ${task.cpus} ${sample_id}.sorted.bam
     """
 }
-
 
 // workflow module
 workflow align {
     take:
         stranded_fq
         ref_genome
-        ref_genome_idx
-        ref_genes_gtf
     main:
-        call_paftools(ref_genes_gtf)
-        get_chrom_sizes(ref_genome_idx)
+        //stranded_fq.groupTuple().view()
         align_to_ref(
             stranded_fq.groupTuple(),
-            ref_genome,
-            call_paftools.out.ref_genes_bed,
-            get_chrom_sizes.out.ref_chrom_sizes)
+            ref_genome)
     emit:
         bam_sort = align_to_ref.out.bam_sort
 }

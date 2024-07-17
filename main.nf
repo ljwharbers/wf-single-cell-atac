@@ -199,7 +199,6 @@ workflow pipeline {
     take:
         reads
         ref_genome_dir
-        umap_genes
         meta
     main:
         // throw an exception for deprecated conda users
@@ -209,9 +208,8 @@ workflow pipeline {
                 "please use --profile standard (Docker) " +
                 "or --profile singularity.")
         }
-        ref_genome_fasta = file("${ref_genome_dir}/fasta/genome.fa", checkIfExists: true)
-        ref_genome_idx = file("${ref_genome_fasta}.fai", checkIfExists: true)
-        ref_genes_gtf = file("${ref_genome_dir}/genes/genes.gtf", checkIfExists: true)
+        ref_genome_fasta = file("${ref_genome_dir}/**.fa", checkIfExists: true)
+        ref_genome_idx = file("${ref_genome_fasta[0]}.fai", checkIfExists: true)
         software_versions = getVersions()
         workflow_params = getParams()
         
@@ -224,44 +222,16 @@ workflow pipeline {
 
         align(
             stranding.out.stranded_fq,
-            ref_genome_fasta,
-            ref_genome_idx,
-            ref_genes_gtf)
+            ref_genome_fasta)
 
         process_bams(
             align.out.bam_sort,
             meta,
-            ref_genes_gtf,
-            bc_longlist_dir,
-            ref_genome_fasta,
-            ref_genome_idx)
+            bc_longlist_dir)
         
-        prepare_report_data(
-            process_bams.out.final_read_tags
-            .join(stranding.out.config_stats)
-            .join(process_bams.out.white_list)
-            .join(process_bams.out.gene_expression)
-            .join(process_bams.out.transcript_expression)
-            .join(process_bams.out.mitochondrial_expression)
-            .join(process_bams.out.umap_matrices))
-        
-        makeReport(
-            software_versions,
-            workflow_params,
-            summariseCatChunkReads.out.stats
-                .map {it -> it[1]}
-                .collectFile(keepHeader:true),
-            prepare_report_data.out.survival
-                .collectFile(keepHeader:true),
-            prepare_report_data.out.summary
-                .collectFile(keepHeader:true),
-            prepare_report_data.out.umap_dir,
-            process_bams.out.plots,
-            umap_genes)
     emit:
         results = process_bams.out.results
         config_stats = stranding.out.config_stats
-        report = makeReport.out
 }
 
 
@@ -274,7 +244,6 @@ workflow {
     }
     
     ref_genome_dir = file(params.ref_genome_dir, checkIfExists: true)
-    umap_genes = file(params.umap_plot_genes, checkIfExists: true)
 
     if (params.kit_config){
         kit_configs_file = file(params.kit_config, checkIfExists: true)
@@ -347,17 +316,19 @@ workflow {
                 case 'multiome':
                     long_list = "737K-arc-v1.txt.gz"
                     break
+                case 'multiomeatac':
+                    long_list = "737K-arc-v1-atac.txt.gz"
+                    break
                 default:
                     throw new Exception("Encountered an unexpected kit_name in samples.csv")
             }
             meta['bc_long_list'] = long_list
 
             [it[3]['sample_id'], meta]}
-
-    pipeline(reads, ref_genome_dir, umap_genes, sample_info)
-
+    pipeline(reads, ref_genome_dir, sample_info)
 
 
+/*
     output(pipeline.out.results.flatMap({it ->
         // Convert [sample_id, file, file, ..] 
         // to      [[sample_id, file], [sample_id, file], ...]
@@ -368,8 +339,7 @@ workflow {
             return l
         }).concat(pipeline.out.config_stats)
     )
-
-    output_report(pipeline.out.report)
+    */
 }
 
 if (params.disable_ping == false) {
